@@ -1,0 +1,53 @@
+{
+	"geode": "5.0.1",
+	"gd": {
+		"win": "2.2081"
+	},
+	"id": "sidastuff.tabbedout",
+	"name": "TabbedOut",
+	"version": "v1.0.0",
+	"developer": "sidastuff",
+	"description": "Lowers FPS and can mute audio while Geometry Dash is unfocused.",
+	"tags": ["universal", "utility", "performance"],
+	"settings": {
+		"background-title": {
+			"type": "title",
+			"name": "Background Options"
+		},
+		"limit-fps-when-unfocused": {
+			"type": "bool",
+			"name": "Limit FPS When Unfocused",
+			"description": "Drops the game's frame rate while the window is unfocused.",
+			"default": true
+		},
+		"unfocused-fps": {
+			"type": "int",
+			"name": "Unfocused FPS",
+			"description": "Target FPS while Geometry Dash is tabbed out.",
+			"default": 10,
+			"min": 1,
+			"max": 240,
+			"enable-if": "limit-fps-when-unfocused",
+			"controls": {
+				"slider": true,
+				"slider-step": 1,
+				"input": true,
+				"arrows": true,
+				"arrow-step": 1
+			}
+		},
+		"mute-audio-when-unfocused": {
+			"type": "bool",
+			"name": "Mute Audio When Unfocused",
+			"description": "Pauses all audio while the game is unfocused.",
+			"default": true
+		}
+	},
+	"dependencies": {
+		"geode.node-ids": ">=v1.23.3"
+	},
+	"incompatibilities": {
+
+    "incidius.mute-when-unfocused": "1.0.0"
+}
+}
