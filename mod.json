@@ -9,6 +9,9 @@
 	"developer": "sidastuff",
 	"description": "Lowers FPS and can mute audio while Geometry Dash is unfocused.",
 	"tags": ["universal", "utility", "performance"],
+	"links": {
+		"source": "https://github.com/SiDaStuff/tabbedoutgd"
+	},
 	"settings": {
 		"background-title": {
 			"type": "title",
