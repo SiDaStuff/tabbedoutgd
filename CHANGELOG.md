@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.2
+
+- split audio muting into separate music and SFX settings
+- added an optional Geode notification when the mod activates or deactivates
+- removed the unused `geode.node-ids` dependency
+- bumped project metadata to `v1.0.2`
+
 ## v1.0.1
 
 - fixed tabbed out detection by checking the actual cocos window focus state

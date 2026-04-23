@@ -5,9 +5,9 @@
 	},
 	"id": "sidastuff.tabbedout",
 	"name": "TabbedOut",
-	"version": "v1.0.1",
+	"version": "v1.0.2",
 	"developer": "sidastuff",
-	"description": "Lowers FPS and can mute audio while Geometry Dash is unfocused.",
+	"description": "Lowers FPS and can mute music or SFX while Geometry Dash is unfocused.",
 	"tags": ["universal", "utility", "performance"],
 	"links": {
 		"source": "https://github.com/SiDaStuff/tabbedoutgd"
@@ -39,18 +39,27 @@
 				"arrow-step": 1
 			}
 		},
-		"mute-audio-when-unfocused": {
+		"mute-music-when-unfocused": {
 			"type": "bool",
-			"name": "Mute Audio When Unfocused",
-			"description": "Sets music and sfx volume to 0 while the game is unfocused.",
+			"name": "Mute Music When Unfocused",
+			"description": "Sets the music volume to 0 while the game is unfocused.",
 			"default": true
+		},
+		"mute-sfx-when-unfocused": {
+			"type": "bool",
+			"name": "Mute SFX When Unfocused",
+			"description": "Sets the effects volume to 0 while the game is unfocused.",
+			"default": true
+		},
+		"show-focus-notifications": {
+			"type": "bool",
+			"name": "Show Focus Notifications",
+			"description": "Shows a small Geode notification when TabbedOut turns on or off.",
+			"default": false
 		}
-	},
-	"dependencies": {
-		"geode.node-ids": ">=v1.23.3"
 	},
 	"incompatibilities": {
 
-    "incidius.mute-when-unfocused": "1.0.0"
-}
+	    "incidius.mute-when-unfocused": "1.0.0"
+	}
 }

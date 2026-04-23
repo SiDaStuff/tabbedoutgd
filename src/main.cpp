@@ -1,6 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/loader/SettingV3.hpp>
 #include <Geode/modify/AppDelegate.hpp>
+#include <Geode/ui/Notification.hpp>
 #include <Windows.h>
 
 using namespace geode::prelude;
@@ -36,13 +37,16 @@ namespace {
             else {
                 this->restoreEverything();
             }
+
+            this->showFocusNotification();
         }
 
     private:
         bool m_appActive = true;
         bool m_isUnfocused = false;
         bool m_changedFps = false;
-        bool m_mutedAudio = false;
+        bool m_mutedMusic = false;
+        bool m_mutedSfx = false;
         double m_oldInterval = 1.0 / 60.0;
         int64_t m_appliedUnfocusedFps = 0;
         float m_oldMusicVolume = 1.f;
@@ -111,21 +115,35 @@ namespace {
 
         void syncAudioMute() {
             auto* audio = FMODAudioEngine::sharedEngine();
+            if (!audio) {
+                return;
+            }
 
-            if (audio) {
-                if (m_mutedAudio) {
-                    audio->setBackgroundMusicVolume(m_oldMusicVolume);
-                    audio->setEffectsVolume(m_oldSfxVolume);
-                    m_mutedAudio = false;
-                }
+            auto shouldMuteMusic = Mod::get()->getSettingValue<bool>("mute-music-when-unfocused");
+            auto shouldMuteSfx = Mod::get()->getSettingValue<bool>("mute-sfx-when-unfocused");
 
-                if (Mod::get()->getSettingValue<bool>("mute-audio-when-unfocused")) {
+            if (shouldMuteMusic) {
+                if (!m_mutedMusic) {
                     m_oldMusicVolume = audio->getBackgroundMusicVolume();
-                    m_oldSfxVolume = audio->getEffectsVolume();
-                    audio->setBackgroundMusicVolume(0.f);
-                    audio->setEffectsVolume(0.f);
-                    m_mutedAudio = true;
+                    m_mutedMusic = true;
                 }
+                audio->setBackgroundMusicVolume(0.f);
+            }
+            else if (m_mutedMusic) {
+                audio->setBackgroundMusicVolume(m_oldMusicVolume);
+                m_mutedMusic = false;
+            }
+
+            if (shouldMuteSfx) {
+                if (!m_mutedSfx) {
+                    m_oldSfxVolume = audio->getEffectsVolume();
+                    m_mutedSfx = true;
+                }
+                audio->setEffectsVolume(0.f);
+            }
+            else if (m_mutedSfx) {
+                audio->setEffectsVolume(m_oldSfxVolume);
+                m_mutedSfx = false;
             }
         }
 
@@ -139,11 +157,27 @@ namespace {
                 m_appliedUnfocusedFps = 0;
             }
 
-            if (audio && m_mutedAudio) {
+            if (audio && m_mutedMusic) {
                 audio->setBackgroundMusicVolume(m_oldMusicVolume);
-                audio->setEffectsVolume(m_oldSfxVolume);
-                m_mutedAudio = false;
+                m_mutedMusic = false;
             }
+
+            if (audio && m_mutedSfx) {
+                audio->setEffectsVolume(m_oldSfxVolume);
+                m_mutedSfx = false;
+            }
+        }
+
+        void showFocusNotification() const {
+            if (!Mod::get()->getSettingValue<bool>("show-focus-notifications")) {
+                return;
+            }
+
+            Notification::create(
+                m_isUnfocused ? "TabbedOut enabled" : "TabbedOut disabled",
+                NotificationIcon::Info,
+                0.6f
+            )->show();
         }
     };
 
@@ -172,7 +206,15 @@ $execute {
         TabbedOutState::get().refresh();
     });
 
-    listenForSettingChanges<bool>("mute-audio-when-unfocused", [](bool) {
+    listenForSettingChanges<bool>("mute-music-when-unfocused", [](bool) {
+        TabbedOutState::get().refresh();
+    });
+
+    listenForSettingChanges<bool>("mute-sfx-when-unfocused", [](bool) {
+        TabbedOutState::get().refresh();
+    });
+
+    listenForSettingChanges<bool>("show-focus-notifications", [](bool) {
         TabbedOutState::get().refresh();
     });
 }
