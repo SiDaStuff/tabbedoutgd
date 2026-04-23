@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.1
+
+- fixed tabbed out detection by checking the actual cocos window focus state
+- moved focus checking off `drawScene` and onto cocos scheduler updates
+- kept the unfocused fps limiter disabled when vsync is on
+- kept audio muting on volume changes instead of pausing channels
+
 ## v1.0.0
 
 - added a background FPS limiter with a default of `10`

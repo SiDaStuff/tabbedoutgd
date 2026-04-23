@@ -5,7 +5,7 @@
 	},
 	"id": "sidastuff.tabbedout",
 	"name": "TabbedOut",
-	"version": "v1.0.0",
+	"version": "v1.0.1",
 	"developer": "sidastuff",
 	"description": "Lowers FPS and can mute audio while Geometry Dash is unfocused.",
 	"tags": ["universal", "utility", "performance"],
@@ -42,7 +42,7 @@
 		"mute-audio-when-unfocused": {
 			"type": "bool",
 			"name": "Mute Audio When Unfocused",
-			"description": "Pauses all audio while the game is unfocused.",
+			"description": "Sets music and sfx volume to 0 while the game is unfocused.",
 			"default": true
 		}
 	},

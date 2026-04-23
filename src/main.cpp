@@ -1,67 +1,176 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/CCDirector.hpp>
+#include <Geode/loader/SettingV3.hpp>
+#include <Geode/modify/AppDelegate.hpp>
 #include <Windows.h>
 
 using namespace geode::prelude;
 
-bool wasOut = false;
-bool mutedByMod = false;
-double oldInterval = 1.0 / 60.0;
+namespace {
+    class TabbedOutState {
+    public:
+        static TabbedOutState& get() {
+            static TabbedOutState state;
+            return state;
+        }
 
-bool gameIsOut() {
-    auto window = GetForegroundWindow();
-    if (!window) return true;
+        void setAppActive(bool active) {
+            m_appActive = active;
+            this->refresh();
+        }
 
-    DWORD pid = 0;
-    GetWindowThreadProcessId(window, &pid);
-    return pid != GetCurrentProcessId();
+        void refresh() {
+            bool shouldBeUnfocused = this->isReallyUnfocused();
+
+            if (shouldBeUnfocused == m_isUnfocused) {
+                if (m_isUnfocused) {
+                    this->applyWhileUnfocused();
+                }
+                return;
+            }
+
+            m_isUnfocused = shouldBeUnfocused;
+
+            if (m_isUnfocused) {
+                this->applyWhileUnfocused();
+            }
+            else {
+                this->restoreEverything();
+            }
+        }
+
+    private:
+        bool m_appActive = true;
+        bool m_isUnfocused = false;
+        bool m_changedFps = false;
+        bool m_mutedAudio = false;
+        double m_oldInterval = 1.0 / 60.0;
+        float m_oldMusicVolume = 1.f;
+        float m_oldSfxVolume = 1.f;
+
+        bool isReallyUnfocused() const {
+            auto foregroundWindow = GetForegroundWindow();
+            if (!foregroundWindow) {
+                return true;
+            }
+
+            DWORD foregroundPid = 0;
+            GetWindowThreadProcessId(foregroundWindow, &foregroundPid);
+
+            auto sameProcess = foregroundPid == GetCurrentProcessId();
+            auto iconified = IsIconic(foregroundWindow) != 0;
+
+            return !m_appActive || !sameProcess || iconified;
+        }
+
+        void applyWhileUnfocused() {
+            auto* director = cocos2d::CCDirector::sharedDirector();
+            auto* gameManager = GameManager::sharedState();
+            auto* audio = FMODAudioEngine::sharedEngine();
+
+            if (director) {
+                if (m_changedFps) {
+                    director->setAnimationInterval(m_oldInterval);
+                    m_changedFps = false;
+                }
+
+                if (
+                    Mod::get()->getSettingValue<bool>("limit-fps-when-unfocused") &&
+                    gameManager &&
+                    !gameManager->m_vsyncEnabled
+                ) {
+                    auto fps = Mod::get()->getSettingValue<int64_t>("unfocused-fps");
+                    if (fps < 1) {
+                        fps = 1;
+                    }
+
+                    m_oldInterval = director->getAnimationInterval();
+                    director->setAnimationInterval(1.0 / static_cast<double>(fps));
+                    m_changedFps = true;
+                }
+            }
+
+            if (audio) {
+                if (m_mutedAudio) {
+                    audio->setBackgroundMusicVolume(m_oldMusicVolume);
+                    audio->setEffectsVolume(m_oldSfxVolume);
+                    m_mutedAudio = false;
+                }
+
+                if (Mod::get()->getSettingValue<bool>("mute-audio-when-unfocused")) {
+                    m_oldMusicVolume = audio->getBackgroundMusicVolume();
+                    m_oldSfxVolume = audio->getEffectsVolume();
+                    audio->setBackgroundMusicVolume(0.f);
+                    audio->setEffectsVolume(0.f);
+                    m_mutedAudio = true;
+                }
+            }
+        }
+
+        void restoreEverything() {
+            auto* director = cocos2d::CCDirector::sharedDirector();
+            auto* audio = FMODAudioEngine::sharedEngine();
+
+            if (director && m_changedFps) {
+                director->setAnimationInterval(m_oldInterval);
+                m_changedFps = false;
+            }
+
+            if (audio && m_mutedAudio) {
+                audio->setBackgroundMusicVolume(m_oldMusicVolume);
+                audio->setEffectsVolume(m_oldSfxVolume);
+                m_mutedAudio = false;
+            }
+        }
+    };
+
+    class FocusWatcher : public cocos2d::CCObject {
+    public:
+        void update(float) {
+            TabbedOutState::get().refresh();
+        }
+    };
+
+    FocusWatcher* getFocusWatcher() {
+        static auto* watcher = new FocusWatcher();
+        return watcher;
+    }
 }
 
-void turnStuffOn() {
-    auto* director = cocos2d::CCDirector::sharedDirector();
-    if (!director) return;
+$execute {
+    auto* scheduler = cocos2d::CCDirector::sharedDirector()->getScheduler();
+    scheduler->scheduleUpdateForTarget(getFocusWatcher(), 0, false);
 
-    oldInterval = director->getAnimationInterval();
+    listenForSettingChanges<bool>("limit-fps-when-unfocused", [](bool) {
+        TabbedOutState::get().refresh();
+    });
 
-    if (Mod::get()->getSettingValue<bool>("limit-fps-when-unfocused")) {
-        auto fps = Mod::get()->getSettingValue<int64_t>("unfocused-fps");
-        if (fps < 1) fps = 1;
-        director->setAnimationInterval(1.0 / static_cast<double>(fps));
-    }
+    listenForSettingChanges<int64_t>("unfocused-fps", [](int64_t) {
+        TabbedOutState::get().refresh();
+    });
 
-    if (Mod::get()->getSettingValue<bool>("mute-audio-when-unfocused")) {
-        if (auto* audio = FMODAudioEngine::sharedEngine()) {
-            audio->pauseAllAudio();
-            mutedByMod = true;
-        }
-    }
+    listenForSettingChanges<bool>("mute-audio-when-unfocused", [](bool) {
+        TabbedOutState::get().refresh();
+    });
 }
 
-void turnStuffOff() {
-    if (auto* director = cocos2d::CCDirector::sharedDirector()) {
-        director->setAnimationInterval(oldInterval);
+class $modify(TabbedOutAppDelegate, AppDelegate) {
+    void applicationWillResignActive() {
+        AppDelegate::applicationWillResignActive();
+        TabbedOutState::get().setAppActive(false);
     }
 
-    if (mutedByMod) {
-        if (auto* audio = FMODAudioEngine::sharedEngine()) {
-            audio->resumeAllAudio();
-        }
-        mutedByMod = false;
+    void applicationWillBecomeActive() {
+        AppDelegate::applicationWillBecomeActive();
+        TabbedOutState::get().setAppActive(true);
     }
-}
 
-class $modify(TabbedOutDirector, cocos2d::CCDirector) {
-    void drawScene() {
-        auto out = gameIsOut();
+    void applicationDidEnterBackground() {
+        AppDelegate::applicationDidEnterBackground();
+        TabbedOutState::get().setAppActive(false);
+    }
 
-        if (out && !wasOut) {
-            turnStuffOn();
-        }
-        else if (!out && wasOut) {
-            turnStuffOff();
-        }
-
-        wasOut = out;
-        cocos2d::CCDirector::drawScene();
+    void applicationWillEnterForeground() {
+        AppDelegate::applicationWillEnterForeground();
+        TabbedOutState::get().setAppActive(true);
     }
 };
