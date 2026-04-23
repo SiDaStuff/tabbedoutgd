@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.3
+
+- raised the minimum unfocused FPS to `5` so Windows is less likely to show false `Not Responding` warnings
+	
 ## v1.0.2
 
 - split audio muting into separate music and SFX settings

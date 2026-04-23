@@ -5,7 +5,7 @@
 	},
 	"id": "sidastuff.tabbedout",
 	"name": "TabbedOut",
-	"version": "v1.0.2",
+	"version": "v1.0.3",
 	"developer": "sidastuff",
 	"description": "Lowers FPS and can mute music or SFX while Geometry Dash is unfocused.",
 	"tags": ["universal", "utility", "performance"],
@@ -26,9 +26,9 @@
 		"unfocused-fps": {
 			"type": "int",
 			"name": "Unfocused FPS",
-			"description": "Target FPS while Geometry Dash is tabbed out.",
+			"description": "Target FPS while Geometry Dash is tabbed out. Values below 5 FPS are blocked to avoid Windows false \"Not Responding\" reports.",
 			"default": 10,
-			"min": 1,
+			"min": 5,
 			"max": 240,
 			"enable-if": "limit-fps-when-unfocused",
 			"controls": {

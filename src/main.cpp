@@ -7,6 +7,8 @@
 using namespace geode::prelude;
 
 namespace {
+    constexpr int64_t kMinimumSafeUnfocusedFps = 5;
+
     class TabbedOutState {
     public:
         static TabbedOutState& get() {
@@ -95,8 +97,9 @@ namespace {
             }
 
             auto fps = Mod::get()->getSettingValue<int64_t>("unfocused-fps");
-            if (fps < 1) {
-                fps = 1;
+            // Very low animation intervals can make Windows think the game stopped pumping messages.
+            if (fps < kMinimumSafeUnfocusedFps) {
+                fps = kMinimumSafeUnfocusedFps;
             }
 
             if (m_changedFps && m_appliedUnfocusedFps == fps) {
