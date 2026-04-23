@@ -23,7 +23,7 @@ namespace {
 
             if (shouldBeUnfocused == m_isUnfocused) {
                 if (m_isUnfocused) {
-                    this->applyWhileUnfocused();
+                    this->syncWhileUnfocused();
                 }
                 return;
             }
@@ -31,7 +31,7 @@ namespace {
             m_isUnfocused = shouldBeUnfocused;
 
             if (m_isUnfocused) {
-                this->applyWhileUnfocused();
+                this->syncWhileUnfocused();
             }
             else {
                 this->restoreEverything();
@@ -44,6 +44,7 @@ namespace {
         bool m_changedFps = false;
         bool m_mutedAudio = false;
         double m_oldInterval = 1.0 / 60.0;
+        int64_t m_appliedUnfocusedFps = 0;
         float m_oldMusicVolume = 1.f;
         float m_oldSfxVolume = 1.f;
 
@@ -62,32 +63,54 @@ namespace {
             return !m_appActive || !sameProcess || iconified;
         }
 
-        void applyWhileUnfocused() {
+        void syncWhileUnfocused() {
+            this->syncFpsLimit();
+            this->syncAudioMute();
+        }
+
+        void syncFpsLimit() {
             auto* director = cocos2d::CCDirector::sharedDirector();
             auto* gameManager = GameManager::sharedState();
-            auto* audio = FMODAudioEngine::sharedEngine();
 
-            if (director) {
+            if (!director) {
+                return;
+            }
+
+            bool shouldLimitFps =
+                Mod::get()->getSettingValue<bool>("limit-fps-when-unfocused") &&
+                gameManager &&
+                !gameManager->m_vsyncEnabled;
+
+            if (!shouldLimitFps) {
                 if (m_changedFps) {
                     director->setAnimationInterval(m_oldInterval);
                     m_changedFps = false;
+                    m_appliedUnfocusedFps = 0;
                 }
-
-                if (
-                    Mod::get()->getSettingValue<bool>("limit-fps-when-unfocused") &&
-                    gameManager &&
-                    !gameManager->m_vsyncEnabled
-                ) {
-                    auto fps = Mod::get()->getSettingValue<int64_t>("unfocused-fps");
-                    if (fps < 1) {
-                        fps = 1;
-                    }
-
-                    m_oldInterval = director->getAnimationInterval();
-                    director->setAnimationInterval(1.0 / static_cast<double>(fps));
-                    m_changedFps = true;
-                }
+                return;
             }
+
+            auto fps = Mod::get()->getSettingValue<int64_t>("unfocused-fps");
+            if (fps < 1) {
+                fps = 1;
+            }
+
+            if (m_changedFps && m_appliedUnfocusedFps == fps) {
+                return;
+            }
+
+            if (m_changedFps) {
+                director->setAnimationInterval(m_oldInterval);
+            }
+
+            m_oldInterval = director->getAnimationInterval();
+            director->setAnimationInterval(1.0 / static_cast<double>(fps));
+            m_changedFps = true;
+            m_appliedUnfocusedFps = fps;
+        }
+
+        void syncAudioMute() {
+            auto* audio = FMODAudioEngine::sharedEngine();
 
             if (audio) {
                 if (m_mutedAudio) {
@@ -113,6 +136,7 @@ namespace {
             if (director && m_changedFps) {
                 director->setAnimationInterval(m_oldInterval);
                 m_changedFps = false;
+                m_appliedUnfocusedFps = 0;
             }
 
             if (audio && m_mutedAudio) {
